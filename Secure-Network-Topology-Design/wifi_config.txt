@@ -1,0 +1,36 @@
+! ===============================
+! Wi-Fi Access Point Configuration
+! ===============================
+
+! SSID 1: Office Wi-Fi
+SSID: Office_WiFi
+VLAN: 10
+Security: WPA2-Personal (AES)
+Password: StrongUniquePassword123
+Notes:
+- For internal staff only
+- Full access to Office LAN resources
+
+! SSID 2: Guest Wi-Fi
+SSID: Guest_WiFi
+VLAN: 20
+Security: WPA2-Personal (AES)
+Password: AnotherStrongPassword456
+Notes:
+- For visitors and guests
+- Internet access only (blocked from Office LAN via ACLs)
+
+! ===============================
+! Security Hardening
+! ===============================
+- Disabled WPS (Wi-Fi Protected Setup)
+- Enabled Client Isolation (guests cannot see each other’s devices)
+- Verified mapping of SSIDs to correct VLANs
+- Confirmed ACLs prevent Guest Wi-Fi users from reaching Office LAN
+
+! ===============================
+! Testing & Validation
+! ===============================
+- Office Wi-Fi → Able to access LAN servers and Internet ✅
+- Guest Wi-Fi → Able to access Internet only ✅
+- Guest Wi-Fi → Blocked from pinging/connecting to Office LAN ✅
