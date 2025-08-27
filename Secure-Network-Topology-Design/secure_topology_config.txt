@@ -1,0 +1,68 @@
+! ===============================
+! Cisco ASA Secure Network Config
+! ===============================
+
+! OUTSIDE Interface
+interface GigabitEthernet1/4
+   nameif outside
+   security-level 0
+   ip address 203.0.113.1 255.255.255.0
+   no shutdown
+
+! INSIDE (Office LAN)
+interface GigabitEthernet1/1
+   nameif inside
+   security-level 100
+   ip address 192.168.10.1 255.255.255.0
+   no shutdown
+
+! GUEST Wi-Fi
+interface GigabitEthernet1/2
+   nameif guest
+   security-level 50
+   ip address 192.168.20.1 255.255.255.0
+   no shutdown
+
+! DMZ
+interface GigabitEthernet1/3
+   nameif dmz
+   security-level 25
+   ip address 192.168.30.1 255.255.255.0
+   no shutdown
+
+! ===============================
+! Access Control Lists (ACLs)
+! ===============================
+
+! Office LAN – Full Access
+access-list inside_access_in extended permit ip any any
+access-group inside_access_in in interface inside
+
+! Guest Wi-Fi – Block access to Office LAN
+access-list guest_access_in extended deny ip any 192.168.10.0 255.255.255.0
+access-list guest_access_in extended permit ip any any
+access-group guest_access_in in interface guest
+
+! Outside – Allow Web Access to DMZ
+access-list outside_access_in extended permit tcp any host 192.168.30.2 eq 80
+access-list outside_access_in extended permit tcp any host 192.168.30.2 eq 443
+access-group outside_access_in in interface outside
+
+! ===============================
+! NAT Configuration
+! ===============================
+
+! Inside network NAT
+object network INSIDE_NET
+ subnet 192.168.10.0 255.255.255.0
+ nat (inside,outside) dynamic interface
+
+! Guest Wi-Fi NAT
+object network GUEST_NET
+ subnet 192.168.20.0 255.255.255.0
+ nat (guest,outside) dynamic interface
+
+! DMZ Web Server NAT
+object network WEB_SERVER
+ host 192.168.30.2
+ nat (dmz,outside) static 203.0.113.2
