@@ -1,107 +1,123 @@
-#!/usr/bin/env bash
-# CYBERSHIELD CORP – RBAC Implementation (Kali/Debian/Ubuntu)
-# Run with: sudo bash script.sh
+#!/bin/bash
 
-set -euo pipefail
+# === Setup RBAC Environment for Cybershield Corp ===
 
-# ---- Safety checks ----
-if [[ $EUID -ne 0 ]]; then
-  echo "Please run as root: sudo bash script.sh"
-  exit 1
-fi
-
-# ---- Vars ----
-BASE="/Company"
-DEPTS=(engineering hr finance marketing itsupport executive)
-
-# Users (username:primary_group)
-USERS=(
-  "alice_eng:engineering"
-  "kelly_eng:engineering"
-  "bob_hr:hr"
-  "tim_hr:hr"
-  "john_fin:finance"
-  "clara_fin:finance"
-  "rita_mark:marketing"
-  "kevin_it:itsupport"
-  "ceo_exec:executive"
-)
-
-# ---- Create groups ----
-echo "[*] Creating department groups (ok if they already exist)…"
-for g in "${DEPTS[@]}"; do
-  getent group "$g" >/dev/null || groupadd "$g"
+echo "Creating department groups..."
+for dept in engineering hr finance marketing itsupport; do
+    groupadd $dept
 done
 
-# ---- Create base and department dirs ----
-echo "[*] Creating directory structure under $BASE …"
-mkdir -p "$BASE"
-chown root:root "$BASE"
-chmod 755 "$BASE"
+echo "Creating users and assigning to groups..."
 
-for d in "${DEPTS[@]}"; do
-  mkdir -p "$BASE/$d"
-  chown root:"$d" "$BASE/$d"
-  chmod 770 "$BASE/$d"
+# Engineering
+for user in alice_eng dave_eng jude_eng kelly_eng fatima_eng; do
+    useradd -m $user -G engineering
+    echo "$user:Passw0rd123" | chpasswd
 done
 
-# ---- Shared structure ----
-mkdir -p "$BASE/shared/campaign_budget" \
-         "$BASE/shared/hr_finance_reports" \
-         "$BASE/shared/announcements"
-
-# Default secure perms before ACLs
-for sd in campaign_budget hr_finance_reports announcements; do
-  chown root:root "$BASE/shared/$sd"
-  chmod 770 "$BASE/shared/$sd"
+# HR
+for user in bob_hr susan_hr moses_hr tim_hr tolu_hr; do
+    useradd -m $user -G hr
+    echo "$user:Passw0rd123" | chpasswd
 done
 
-# ---- Create users and assign to groups ----
-echo "[*] Creating users and adding to primary groups…"
-for entry in "${USERS[@]}"; do
-  usr="${entry%%:*}"
-  grp="${entry##*:}"
-
-  if id "$usr" >/dev/null 2>&1; then
-    echo "  - $usr exists; ensuring primary group is $grp and home dir present"
-    usermod -g "$grp" "$usr" || true
-    [[ -d "/home/$usr" ]] || mkdir -p "/home/$usr"
-    chown -R "$usr:$grp" "/home/$usr"
-  else
-    useradd -m -s /bin/bash -g "$grp" "$usr"
-    # Force password change on first login (no password set here)
-    chage -d 0 "$usr"
-  fi
+# Finance
+for user in john_fin clara_fin steve_fin kemi_fin chi_fin; do
+    useradd -m $user -G finance
+    echo "$user:Passw0rd123" | chpasswd
 done
 
-# ---- ACLs for shared folders ----
-echo "[*] Applying ACLs…"
+# Marketing
+for user in francis_mark rita_mark lukman_mark tom_mark farida_mark; do
+    useradd -m $user -G marketing
+    echo "$user:Passw0rd123" | chpasswd
+done
 
-# /Company/shared/campaign_budget
-# Marketing: rwx, Finance: rx
-setfacl -b "$BASE/shared/campaign_budget"
-setfacl -m g:marketing:rwx,g:finance:rx,m::rwx "$BASE/shared/campaign_budget"
-setfacl -d -m g:marketing:rwx,g:finance:rx,m::rwx "$BASE/shared/campaign_budget"
+# IT Support
+for user in damilola_it yusuf_it zainab_it kevin_it bolu_it; do
+    useradd -m $user -G itsupport
+    echo "$user:Passw0rd123" | chpasswd
+done
 
-# /Company/shared/hr_finance_reports
-# HR: rx, Finance: rx
-setfacl -b "$BASE/shared/hr_finance_reports"
-setfacl -m g:hr:rx,g:finance:rx,m::rx "$BASE/shared/hr_finance_reports"
-setfacl -d -m g:hr:rx,g:finance:rx,m::rx "$BASE/shared/hr_finance_reports"
+echo "Creating department directories..."
+mkdir -p /company/{engineering,hr,finance,marketing,itsupport}
 
-# /Company/shared/announcements – read/execute for everyone
-setfacl -b "$BASE/shared/announcements"
-chmod 755 "$BASE/shared/announcements"
-# Ensure new files inherit world-read
-setfacl -d -m o:rx,m::rx "$BASE/shared/announcements"
+echo "Setting ownership and permissions..."
+chown root:engineering /company/engineering
+chmod 770 /company/engineering
 
-# ---- Verification hints ----
-echo
-echo "[*] Done. Verify with:"
-echo "  getfacl $BASE/shared/campaign_budget"
-echo "  getfacl $BASE/shared/hr_finance_reports"
-echo "  getfacl $BASE/shared/announcements"
-echo
-echo "[*] Sample checks:"
-echo "  id alice_eng"
-echo "  ls -ld $BASE/* $BASE/shared/*"
+chown root:hr /company/hr
+chmod 770 /company/hr
+
+chown root:finance /company/finance
+chmod 770 /company/finance
+
+chown root:marketing /company/marketing
+chmod 770 /company/marketing
+
+chown root:itsupport /company/itsupport
+chmod 770 /company/itsupport
+
+echo "Creating departmental files..."
+touch /company/engineering/source_code.py
+echo "Confidential source code" > /company/engineering/source_code.py
+
+touch /company/hr/staff_reviews.txt
+echo "HR performance reviews" > /company/hr/staff_reviews.txt
+
+touch /company/finance/budget2025.txt
+echo "Finance budget document" > /company/finance/budget2025.txt
+
+touch /company/marketing/ad_campaigns.docx
+echo "Marketing plans" > /company/marketing/ad_campaigns.docx
+
+touch /company/itsupport/server_logs.log
+echo "IT server logs" > /company/itsupport/server_logs.log
+
+echo "Assigning ownership and cross-group access (with some real-world overlaps)..."
+
+# 1. Over-privilege: Engineering staff owns IT folder
+chown jude_eng /company/itsupport
+
+# 2. Cross-department: HR staff added to Finance
+usermod -aG finance susan_hr
+
+# 3. Cross-department: Engineering staff added to Finance
+usermod -aG finance fatima_eng
+
+# 4. Over-privilege: HR staff added to Engineering
+usermod -aG engineering moses_hr
+
+# 5. Over-privilege: Marketing staff added to HR (access to employee reviews)
+usermod -aG hr tom_mark
+
+# 6. Over-privilege: IT staff added to Marketing
+usermod -aG marketing bolu_it
+
+# 7. Cross-department: Marketing staff owns Finance folder
+chown rita_mark /company/finance
+
+# 8. Over-privilege: Finance staff owns HR directory
+chown john_fin /company/hr
+
+# 9. Cross-department: Engineering staff added to IT Support
+usermod -aG itsupport dave_eng
+
+echo "Applying incorrect permissions to simulate misconfigurations..."
+
+# 10. Too open: Finance folder accessible to all users (world-readable)
+chmod 777 /company/finance
+
+# 11. Too open: HR folder readable by all (leaks staff reviews)
+chmod 755 /company/hr
+
+# 12. Engineering file accessible to all
+chmod 666 /company/engineering/source_code.py
+
+# 13. IT support logs executable (unusual and risky)
+chmod 775 /company/itsupport/server_logs.log
+
+# 14. Marketing folder is writable by others (risk of tampering)
+chmod 757 /company/marketing
+
+echo "RBAC setup complete for Cybershield Corp!"
